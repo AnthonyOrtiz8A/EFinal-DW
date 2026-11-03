@@ -5,10 +5,13 @@ import { useProduct } from '../hooks/useProducts'
 import { getErrorMessage } from '../utils/errorHandler'
 import type { Product } from '../types'
 
-// TODO 3.2 (Detalle): descargue la ficha como archivo producto-{id}.json.
-// Use un Blob con JSON.stringify(item, null, 2), URL.createObjectURL, un <a download> temporal
-// y libere la URL con URL.revokeObjectURL al terminar.
-function downloadFile(item: Product) {
+// TODO 3.2 (Detalle y descarga): descargue la imagen del producto como archivo producto-{id}.<extensión>.
+//  - Pida la imagen (item.thumbnail) con axios y responseType: 'blob'.
+//  - Cree una URL temporal con URL.createObjectURL, descárguela con un <a download> y libérela con
+//    URL.revokeObjectURL al terminar.
+//  - La extensión sale del tipo del Blob (por ejemplo image/webp).
+//  - Si falla, muestre toast.error con getErrorMessage.
+async function downloadImage(item: Product) {
   void item
 }
 
@@ -41,7 +44,7 @@ function ProductDetailPage() {
               <p className="text-xl font-bold">${data.price.toFixed(2)}</p>
               <p className="text-sm text-slate-600">{data.description}</p>
               <p className="text-sm">Stock: {data.stock} · Valoración: {data.rating}</p>
-              <Button onClick={() => downloadFile(data)}>Descargar ficha</Button>
+              <Button onClick={() => downloadImage(data)}>Descargar imagen</Button>
             </div>
           </article>
       )}
