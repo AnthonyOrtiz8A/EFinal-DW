@@ -15,6 +15,13 @@ async function downloadImage(item: Product) {
   void item
 }
 
+// TODO 3.3 (Detalle y descarga): descargue la ficha de texto. Importe fichaText de ../utils/ficha: esa función
+// ya arma el texto. Cree un Blob de tipo text/plain con ese texto y descárguelo como producto-{id}.txt con
+// URL.createObjectURL y un <a download>; libere la URL con URL.revokeObjectURL al terminar.
+function downloadFicha(item: Product) {
+  void item
+}
+
 function ProductDetailPage() {
   const { id } = useParams()
   // TODO 3.1: useProduct(Number(id)) ya devuelve los datos cuando complete el hook.
@@ -44,7 +51,10 @@ function ProductDetailPage() {
               <p className="text-xl font-bold">${data.price.toFixed(2)}</p>
               <p className="text-sm text-slate-600">{data.description}</p>
               <p className="text-sm">Stock: {data.stock} · Valoración: {data.rating}</p>
-              <Button onClick={() => downloadImage(data)}>Descargar imagen</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => downloadImage(data)}>Descargar imagen</Button>
+                <Button variant="outline" onClick={() => downloadFicha(data)}>Descargar ficha</Button>
+              </div>
             </div>
           </article>
       )}
