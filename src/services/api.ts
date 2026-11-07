@@ -1,5 +1,7 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { API_URL } from '../config'
+import { authService } from './authService'
+import { useAuthStore } from '../store/authStore'
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -7,8 +9,46 @@ export const api = axios.create({
   timeout: 15000,
 })
 
-// TODO 1.3 (Autenticación): agregue dos interceptores a 'api'.
-// a) De petición: si hay accessToken en el store, enviarlo en Authorization: Bearer <token>.
-// b) De respuesta: ante un 401 (token vencido) intente UNA sola vez renovar con authService.refresh,
-//    guarde los tokens nuevos con setTokens y repita la petición original. Si la renovación falla,
-//    llame a logout() y lleve al usuario a /login.
+type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean }
+
+let refreshRequest: Promise<{ accessToken: string; refreshToken: string }> | null = null
+
+api.interceptors.request.use((config) => {
+  const { accessToken } = useAuthStore.getState()
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: unknown) => {
+    if (!axios.isAxiosError(error) || error.response?.status !== 401 || !error.config) {
+      return Promise.reject(error)
+    }
+
+    const originalRequest = error.config as RetryConfig
+    if (originalRequest._retry) return Promise.reject(error)
+    originalRequest._retry = true
+
+    const { refreshToken, setTokens, logout } = useAuthStore.getState()
+    if (!refreshToken) {
+      logout()
+      window.location.assign('/login')
+      return Promise.reject(error)
+    }
+
+    try {
+      refreshRequest ??= authService.refresh(refreshToken)
+      const tokens = await refreshRequest
+      setTokens(tokens.accessToken, tokens.refreshToken)
+      originalRequest.headers.set('Authorization', `Bearer ${tokens.accessToken}`)
+      return await api(originalRequest)
+    } catch (refreshError) {
+      logout()
+      window.location.assign('/login')
+      return Promise.reject(refreshError)
+    } finally {
+      refreshRequest = null
+    }
+  },
+)

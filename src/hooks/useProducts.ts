@@ -1,38 +1,46 @@
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { productService } from '../services/productService'
 import type { Product, ListFilters, ProductsResponse } from '../types'
+import { getErrorMessage } from '../utils/errorHandler'
 
-// TODO 2.2 (Listado): useProducts(filters) con useQuery. La queryKey debe incluir los filtros y la
-// consulta no debe parpadear al cambiar de página (placeholderData: keepPreviousData).
 export function useProducts(filters: ListFilters) {
-  void productService
-  void filters
-  return { data: undefined as ProductsResponse | undefined, isLoading: false, isError: false, error: null as unknown, refetch: () => {}, isFetching: false }
+  return useQuery<ProductsResponse>({
+    queryKey: ['products', filters.page, filters.q],
+    queryFn: () => productService.list(filters),
+    placeholderData: keepPreviousData,
+  })
 }
 
-// TODO 3.1 (Detalle): useProduct(id) con useQuery; sin reintentos (retry: false) para que un 404 se muestre de inmediato.
 export function useProduct(id: number) {
-  void id
-  return { data: undefined as Product | undefined, isLoading: false, isError: false, error: null as unknown }
+  return useQuery<Product>({
+    queryKey: ['product', id],
+    queryFn: () => productService.getById(id),
+    enabled: Number.isInteger(id) && id > 0,
+    retry: false,
+  })
 }
 
-// TODO 4.3 (Crear): useCreateProduct() con useMutation. Al terminar: toast de éxito y invalidar la lista.
-// Si falla: toast de error con getErrorMessage.
 export function useCreateProduct() {
-  return {
-    mutate: (body: FormData, options?: { onSuccess?: () => void }) => {
-      void body
-      void options
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: productService.create,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['products'] })
+      toast.success('Producto creado correctamente')
     },
-    isPending: false,
-  }
+    onError: (error) => toast.error(getErrorMessage(error)),
+  })
 }
 
-// TODO 4.4 (Eliminar): useDeleteProduct() con useMutation. Mismo patrón que crear.
 export function useDeleteProduct() {
-  return {
-    mutate: (id: number) => {
-      void id
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: productService.remove,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['products'] })
+      toast.success('Producto eliminado correctamente')
     },
-    isPending: false,
-  }
+    onError: (error) => toast.error(getErrorMessage(error)),
+  })
 }

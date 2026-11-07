@@ -1,31 +1,43 @@
+import axios from 'axios'
 import { Link, useParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useProduct } from '../hooks/useProducts'
 import { getErrorMessage } from '../utils/errorHandler'
+import { fichaText } from '../utils/ficha'
 import type { Product } from '../types'
 
-// TODO 3.2 (Detalle y descarga): descargue la imagen del producto como archivo producto-{id}.<extensión>.
-//  - Pida la imagen (item.thumbnail) con axios y responseType: 'blob'.
-//  - Cree una URL temporal con URL.createObjectURL, descárguela con un <a download> y libérela con
-//    URL.revokeObjectURL al terminar.
-//  - La extensión sale del tipo del Blob (por ejemplo image/webp).
-//  - Si falla, muestre toast.error con getErrorMessage.
-async function downloadImage(item: Product) {
-  void item
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-// TODO 3.3 (Detalle y descarga): descargue la ficha de texto. Importe fichaText de ../utils/ficha: esa función
-// ya arma el texto. Cree un Blob de tipo text/plain con ese texto y descárguelo como producto-{id}.txt con
-// URL.createObjectURL y un <a download>; libere la URL con URL.revokeObjectURL al terminar.
+async function downloadImage(item: Product) {
+  try {
+    const { data } = await axios.get<Blob>(item.thumbnail, { responseType: 'blob' })
+    downloadBlob(data, `producto-${item.id}.webp`)
+  } catch (error) {
+    toast.error(getErrorMessage(error))
+  }
+}
+
 function downloadFicha(item: Product) {
-  void item
+  const blob = new Blob([fichaText(item)], { type: 'text/plain;charset=utf-8' })
+  downloadBlob(blob, `producto-${item.id}.txt`)
 }
 
 function ProductDetailPage() {
   const { id } = useParams()
-  // TODO 3.1: useProduct(Number(id)) ya devuelve los datos cuando complete el hook.
-  const { data, isLoading, isError, error } = useProduct(Number(id))
+  const productId = Number(id)
+  const validId = Number.isInteger(productId) && productId > 0
+  const { data, isLoading, isError, error } = useProduct(productId)
 
   return (
     <main className="mx-auto max-w-3xl p-4">
@@ -33,12 +45,13 @@ function ProductDetailPage() {
         ← Volver al listado
       </Link>
 
-      {isLoading && <p className="mt-6 text-slate-500" role="status">Cargando…</p>}
+      {validId && isLoading && <p className="mt-6 text-slate-500" role="status">Cargando…</p>}
 
-      {/* TODO 3.1: si el id no existe (404) debe verse un mensaje claro con getErrorMessage. */}
-      {isError && (
+      {(!validId || isError) && (
         <Alert variant="destructive" className="mt-6">
-          <AlertDescription>{getErrorMessage(error)}</AlertDescription>
+          <AlertDescription>
+            {!validId ? 'El identificador del producto no es válido.' : getErrorMessage(error)}
+          </AlertDescription>
         </Alert>
       )}
 

@@ -15,47 +15,52 @@ import { getErrorMessage } from '../utils/errorHandler'
 //  - Al buscar (botón Buscar o Enter) escriba q en la URL y vuelva a la página 1; al paginar cambie solo page.
 //  - Al recargar la página o compartir el enlace debe verse la misma lista.
 function parsePage(raw: string | null): number {
-  void raw
-  return 1
+  if (!raw || !/^\d+$/.test(raw)) return 1
+  const page = Number(raw)
+  return Number.isSafeInteger(page) && page > 0 ? page : 1
 }
 
 function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const q = searchParams.get('q') ?? ''
-  const [text, setText] = useState(q)
   const [showForm, setShowForm] = useState(false)
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
-  // TODO 2.2: useProducts({ page, q }) ya devuelve los datos cuando complete el hook.
   const { data, isLoading, isError, error, refetch, isFetching } = useProducts({ page, q })
   const remove = useDeleteProduct()
   void refetch
   void isFetching
 
-  const search = (event: React.FormEvent) => {
+  const search = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    void setSearchParams
-    // TODO 2.3: actualice la URL con q=text y sin page.
+    const formData = new FormData(event.currentTarget)
+    const text = String(formData.get('q') ?? '').trim()
+    const params = new URLSearchParams(searchParams)
+    params.delete('page')
+    if (text.trim()) params.set('q', text.trim())
+    else params.delete('q')
+    setSearchParams(params)
   }
 
   const changePage = (n: number) => {
-    void n
-    // TODO 2.3: actualice la URL con page=n conservando q.
+    const params = new URLSearchParams(searchParams)
+    if (n <= 1) params.delete('page')
+    else params.set('page', String(n))
+    setSearchParams(params)
   }
 
   const onDelete = (item: { id: number; title: string }) => {
-    // TODO 4.4 (Eliminar): pida confirmación con window.confirm y, si acepta, llame a remove.mutate(item.id).
-    void item
-    void remove
+    if (window.confirm(`¿Eliminar el producto "${item.title}"?`)) {
+      remove.mutate(item.id)
+    }
   }
 
   const salir = () => {
-    // TODO 1.5 (Autenticación): cierre la sesión con logout() y vaya a /login con navigate.
-    void logout
-    void navigate
+    logout()
+    navigate('/login', { replace: true })
   }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
@@ -75,7 +80,7 @@ function ProductsPage() {
         <form onSubmit={search} className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex-1">
             <label htmlFor="q" className="text-sm font-medium">Buscar</label>
-            <input id="q" type="search" value={text} onChange={(e) => setText(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input key={q} id="q" name="q" type="search" defaultValue={q} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           </div>
           <Button type="submit" variant="outline">Buscar</Button>
           <Button type="button" onClick={() => setShowForm(true)}>Nuevo producto</Button>
@@ -98,7 +103,7 @@ function ProductsPage() {
           <>
             <p className="mt-4 text-sm text-slate-500">{data.total} resultados</p>
             {/* TODO 6.1 (Interfaz): la cuadrícula debe tener 1 columna en móvil, 2 en tableta (sm) y 4 en escritorio (lg). */}
-            <div className="mt-2 grid gap-4">
+            <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {data.products.map((item) => (
                 <ProductCard key={item.id} item={item} onDelete={onDelete} />
               ))}
